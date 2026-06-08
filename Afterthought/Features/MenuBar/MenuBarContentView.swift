@@ -104,7 +104,15 @@ struct MenuBarContentView: View {
         let entry = Entry(kind: .note, text: trimmed)
         modelContext.insert(entry)
         entry.session = appState.activeSession
+
+        // Embed standalone notes for semantic search. Session notes are
+        // covered by the session-level embedding generated on stop.
+        if appState.activeSession == nil {
+            entry.embedding = Embedder.embed(trimmed)
+        }
+
         noteText = ""
+        try? modelContext.save()
     }
 
     private func startSession() {
@@ -112,6 +120,6 @@ struct MenuBarContentView: View {
     }
 
     private func stopSession() {
-        appState.stopSession()
+        appState.stopSession(in: modelContext)
     }
 }

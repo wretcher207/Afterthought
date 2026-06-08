@@ -18,41 +18,68 @@ struct TimelineView: View {
 
     @State private var searchText = ""
 
-    /// Quick-notes and one-off captures that don't belong to a session.
-    private var standaloneEntries: [Entry] {
-        allEntries
-            .filter { $0.session == nil }
-            .filter { matches(searchText, in: $0.text) }
+    /// Sessions ranked by semantic similarity to the search query.
+    /// Falls back to text matching when embeddings aren't available.
+    private var rankedSessions: [(session: Session, score: Double)] {
+        guard !searchText.isEmpty, let queryVec = Embedder.vector(for: searchText) else {
+            return sessions.map { ($0, 0) }
+        }
+
+        return sessions.map { session in
+            if let emb = session.embedding {
+                (session, Embedder.cosineSimilarity(query: queryVec, stored: emb))
+            } else if matches(searchText, in: session.title)
+                        || session.entries.contains(where: { matches(searchText, in: $0.text) }) {
+                (session, 0.15)
+            } else {
+                (session, -1)
+            }
+        }
+        .filter { $0.score >= 0 }
+        .sorted { $0.score > $1.score }
     }
 
-    private var filteredSessions: [Session] {
-        sessions.filter { session in
-            searchText.isEmpty
-                || matches(searchText, in: session.title)
-                || session.entries.contains { matches(searchText, in: $0.text) }
+    /// Standalone entries ranked by semantic similarity.
+    private var rankedStandalone: [(entry: Entry, score: Double)] {
+        let standalones = allEntries.filter { $0.session == nil }
+
+        guard !searchText.isEmpty, let queryVec = Embedder.vector(for: searchText) else {
+            return standalones.map { ($0, 0) }
         }
+
+        return standalones.map { entry in
+            if let emb = entry.embedding {
+                (entry, Embedder.cosineSimilarity(query: queryVec, stored: emb))
+            } else if matches(searchText, in: entry.text) {
+                (entry, 0.15)
+            } else {
+                (entry, -1)
+            }
+        }
+        .filter { $0.score >= 0 }
+        .sorted { $0.score > $1.score }
     }
 
     var body: some View {
         NavigationStack {
             List {
-                if !filteredSessions.isEmpty {
+                if !rankedSessions.isEmpty {
                     Section("Sessions") {
-                        ForEach(filteredSessions) { session in
-                            SessionRowView(session: session)
+                        ForEach(rankedSessions, id: \.session.id) { item in
+                            SessionRowView(session: item.session)
                         }
                     }
                 }
 
-                if !standaloneEntries.isEmpty {
+                if !rankedStandalone.isEmpty {
                     Section("Quick Notes") {
-                        ForEach(standaloneEntries) { entry in
-                            EntryRowView(entry: entry)
+                        ForEach(rankedStandalone, id: \.entry.id) { item in
+                            EntryRowView(entry: item.entry)
                         }
                     }
                 }
 
-                if filteredSessions.isEmpty && standaloneEntries.isEmpty {
+                if rankedSessions.isEmpty && rankedStandalone.isEmpty {
                     ContentUnavailableView(
                         searchText.isEmpty ? "No Memories Yet" : "No Matches",
                         systemImage: "brain.head.profile",
@@ -75,7 +102,7 @@ struct TimelineView: View {
                 ToolbarItem(placement: .primaryAction) {
                     if appState.isCapturing {
                         Button("Stop Session", systemImage: "stop.circle") {
-                            appState.stopSession()
+                            appState.stopSession(in: modelContext)
                         }
                         .tint(.red)
                     } else {

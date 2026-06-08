@@ -20,6 +20,7 @@ let package = Package(
                 .linkedFramework("CoreGraphics"),
                 .linkedFramework("ImageIO"),
                 .linkedFramework("UniformTypeIdentifiers"),
+                .linkedFramework("NaturalLanguage"),
             ]
         )
     ]

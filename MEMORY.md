@@ -51,4 +51,23 @@ coherent episodic memories. Reviewed against the `swiftui-pro` skill conventions
 ## Status
 - **1a DONE** — XcodeGen project, SwiftData models (Session/Entry/EntryKind), AppState, menu-bar quick-note + start/stop session, timeline window with search. Builds clean against macOS 26.5 SDK.
 - **1b DONE (live-verified 2026-06-08)** — `Capture/` module: `MediaStore` (HEIC→container), `CapturePipeline` (all-displays capture + Vision OCR, off-main), `CaptureEngine` (@MainActor interval loop + permission state). Wired into AppState + menu-bar/timeline start-stop + denied-permission notice. Ran live: screenshot→HEIC→OCR→Entry confirmed in `default.store`. Crash fix applied (relationship set after `context.insert`, not in `init`).
-- **1c NEXT** — on-device embeddings, session summaries, episodic query UI.
+- **1c IN PROGRESS (2026-06-08)** — on-device embeddings + semantic search wired. Standalone notes embedded on save; sessions embedded on stop. Timeline search now uses cosine similarity ranking with text-match fallback. Session auto-summary (LLM) deferred to next sub-milestone.
+
+### 2026-06-08 — Embedding API choice: NLEmbedding over NLContextualEmbedding
+**Decided:** Use `NLEmbedding.sentenceEmbedding(for: .english)` for on-device semantic search. 512-dimensional `[Double]` vectors, cosine distance built-in, macOS 11+, instant for short text.
+
+**Rejected:** `NLContextualEmbedding` (macOS 14+) — it provides subword-level BERT embeddings (multiple vectors per token), and the header explicitly redirects semantic similarity use cases to `NLEmbedding`. Wrong tool for the job.
+
+**Verified via spike (`spike_embedding.swift`):**
+- Vector extraction: `embedder.vector(for: "text") → [Double]` (512 dims)
+- Empty string returns nil (handled gracefully)
+- Data round-trip: `vec.withUnsafeBytes { Data($0) }` → decode → exact match
+- Latency: 2.4 ms (13 chars), 68 ms (1180 chars), 663 ms (11800 chars)
+- Search quality: "How do screenshots get saved to disk" correctly ranks OCR (0.55) and HEIC storage (0.43) above burrito (0.24)
+
+**Architecture:**
+- `Embedder.swift` wraps NLEmbedding with `vector(for:)`, `embed(_:) → Data?`, `cosineSimilarity(query:stored:) → Double`
+- Session embedding generated synchronously on `stopSession(in:)` (fast enough at ~50ms for typical session text)
+- Standalone notes embedded synchronously on save
+- Timeline search: query → embed → brute-force cosine over `Session.embedding` + `Entry.embedding` → ranked results. Falls back to text match for items without embeddings.
+- `@preconcurrency import NaturalLanguage` to handle NLEmbedding not being Sendable under Swift 6
