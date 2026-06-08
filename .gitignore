@@ -1,0 +1,16 @@
+# Xcode / Swift
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
+.build/
+*.swiftpm
+
+# XcodeGen output — regenerated from project.yml
+Afterthought.xcodeproj/
+
+# macOS
+.DS_Store
+
+# Local secrets
+*.xcconfig.local
