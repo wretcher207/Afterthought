@@ -1,3 +1,4 @@
+import AppKit
 import SwiftData
 import SwiftUI
 
@@ -7,6 +8,7 @@ import SwiftUI
 /// Milestone 1c replaces the plain text filter with episodic semantic query.
 struct TimelineView: View {
     @Environment(AppState.self) private var appState
+    @Environment(\.modelContext) private var modelContext
 
     @Query(sort: \Session.startedAt, order: .reverse)
     private var sessions: [Session]
@@ -64,8 +66,45 @@ struct TimelineView: View {
             }
             .navigationTitle("Afterthought")
             .searchable(text: $searchText, prompt: "Search your memories")
+            .safeAreaInset(edge: .top) {
+                if appState.captureEngine.permission == .denied {
+                    permissionBanner
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    if appState.isCapturing {
+                        Button("Stop Session", systemImage: "stop.circle") {
+                            appState.stopSession()
+                        }
+                        .tint(.red)
+                    } else {
+                        Button("Start Session", systemImage: "record.circle") {
+                            appState.startSession(in: modelContext)
+                        }
+                    }
+                }
+            }
         }
         .frame(minWidth: 480, minHeight: 360)
+    }
+
+    private var permissionBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text("Screen Recording is off — screenshots can't be captured.")
+                .font(.callout)
+            Spacer()
+            Button("Open System Settings") {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
     }
 
     private func matches(_ query: String, in text: String) -> Bool {

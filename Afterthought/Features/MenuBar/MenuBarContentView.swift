@@ -107,20 +107,10 @@ struct MenuBarContentView: View {
     }
 
     private func startSession() {
-        let session = Session(title: Self.defaultSessionTitle())
-        modelContext.insert(session)
-        appState.activeSession = session
-        appState.captureEngine.start(session: session, in: modelContext)
+        appState.startSession(in: modelContext)
     }
 
     private func stopSession() {
-        appState.captureEngine.stop()
-        appState.activeSession?.endedAt = .now
-        appState.activeSession = nil
-    }
-
-    private static func defaultSessionTitle() -> String {
-        let formatter = Date.FormatStyle(date: .abbreviated, time: .shortened)
-        return "Session · \(Date.now.formatted(formatter))"
+        appState.stopSession()
     }
 }
