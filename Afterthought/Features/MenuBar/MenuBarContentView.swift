@@ -1,3 +1,4 @@
+import AppKit
 import SwiftData
 import SwiftUI
 
@@ -20,6 +21,10 @@ struct MenuBarContentView: View {
             Divider()
 
             captureToggle
+
+            if appState.captureEngine.permission == .denied {
+                permissionNotice
+            }
 
             Divider()
 
@@ -74,6 +79,24 @@ struct MenuBarContentView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private var permissionNotice: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Screen Recording is off", systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Text("Afterthought needs Screen Recording permission to capture screenshots.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Button("Open System Settings", systemImage: "gearshape") {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .buttonStyle(.plain)
+            .font(.caption)
+        }
+    }
+
     private func saveNote() {
         let trimmed = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -87,9 +110,11 @@ struct MenuBarContentView: View {
         let session = Session(title: Self.defaultSessionTitle())
         modelContext.insert(session)
         appState.activeSession = session
+        appState.captureEngine.start(session: session, in: modelContext)
     }
 
     private func stopSession() {
+        appState.captureEngine.stop()
         appState.activeSession?.endedAt = .now
         appState.activeSession = nil
     }
