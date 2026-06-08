@@ -1,0 +1,21 @@
+## Worked on
+Afterthought 1b cleanup — three fixes to the macOS personal-memory app.
+
+## Completed
+- Orphan-session fix: CaptureEngine.onPermissionDenied callback → AppState calls stopSession() when Screen Recording is denied, preventing unterminated Session rows
+- Screenshot thumbnails: EntryRowView now renders stored HEIC via ScreenshotThumbnail (async disk load, camera icon placeholder)
+- SPM build support: Package.swift added alongside XcodeGen project. Swift build --disable-sandbox works around nested-sandbox conflict in CodeWhale
+- Sandbox workaround documented in ERRORS.md
+- All changes committed and pushed to new GitHub repo: wretcher207/Afterthought
+
+## In progress
+- 1c (on-device embeddings + episodic query) is next milestone item
+
+## Decisions made
+- Chose option B (1b cleanup before 1c intelligence layer) over jumping straight to embeddings
+- Dual build system (XcodeGen + SPM) instead of restructuring to SPM-only
+- Callback pattern (onPermissionDenied) over delegate protocol for CaptureEngine→AppState communication — simpler, same actor
+
+## Next session priorities
+- 1c: NLContextualEmbedding verification spike, session-level auto-summary, episodic query UI
+- Build and live-test the 1b cleanup changes on David's machine
