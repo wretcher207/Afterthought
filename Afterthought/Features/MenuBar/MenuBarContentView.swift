@@ -101,8 +101,9 @@ struct MenuBarContentView: View {
         let trimmed = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        let entry = Entry(kind: .note, text: trimmed, session: appState.activeSession)
+        let entry = Entry(kind: .note, text: trimmed)
         modelContext.insert(entry)
+        entry.session = appState.activeSession
         noteText = ""
     }
 

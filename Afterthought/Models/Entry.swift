@@ -29,10 +29,9 @@ final class Entry {
     /// The session this entry was captured during, if any.
     var session: Session?
 
-    init(kind: EntryKind, text: String = "", session: Session? = nil) {
+    init(kind: EntryKind, text: String = "") {
         self.kindRaw = kind.rawValue
         self.text = text
-        self.session = session
     }
 
     var kind: EntryKind {

@@ -57,9 +57,10 @@ final class CaptureEngine {
 
             guard let session = context.model(for: sessionID) as? Session else { return }
             for shot in shots {
-                let entry = Entry(kind: .screenshot, text: shot.text, session: session)
+                let entry = Entry(kind: .screenshot, text: shot.text)
                 entry.relativeFilePath = shot.relativeFilePath
                 context.insert(entry)
+                entry.session = session
             }
         } catch {
             // The first failure is almost always Screen Recording being denied;
