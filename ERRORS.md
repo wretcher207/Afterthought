@@ -39,3 +39,40 @@ feature was missing.
 **Note for next time:** After `xcodebuild`, launch the binary from the path printed in
 the build output — don't trust `find | head`. Screen Recording (TCC) grants are also
 tied to the exact binary, so each rebuild may re-prompt and require a relaunch.
+
+## 2026-06-08 — Screen Recording grant dropped on every rebuild (ad-hoc signing)
+
+**What didn't work:** Ad-hoc (`Signature=adhoc`) signing — the default for an unsigned
+local build. TCC keys the grant on the binary's cdhash, which changes every rebuild,
+so the Screen Recording permission was lost each time and System Settings showed a
+stale/non-matching entry ("toggled on but still denied").
+
+**What worked instead:** A stable **self-signed code-signing identity** in the login
+keychain + manual signing in `project.yml`. The designated requirement becomes
+`identifier "com.deadpixel.afterthought" and certificate leaf = H"<hash>"` — no cdhash,
+so the grant survives rebuilds. Grant once, done.
+
+**Recreate the cert if it's ever missing** (new machine / deleted key → builds fail with
+"signing identity not found", and a fresh cert = new hash = re-grant once):
+```bash
+CN="Afterthought Dev"; KC="$HOME/Library/Keychains/login.keychain-db"; PW="afterthought-dev"; W=$(mktemp -d)
+openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -keyout "$W/k.pem" -out "$W/c.pem" \
+  -subj "/CN=$CN" -addext "basicConstraints=critical,CA:false" \
+  -addext "keyUsage=critical,digitalSignature" -addext "extendedKeyUsage=critical,codeSigning"
+openssl pkcs12 -export -legacy -inkey "$W/k.pem" -in "$W/c.pem" -out "$W/id.p12" -passout pass:"$PW" -name "$CN"
+security import "$W/id.p12" -k "$KC" -P "$PW" -A -T /usr/bin/codesign
+security set-key-partition-list -S apple-tool:,apple: -s -k "" "$KC"; rm -rf "$W"
+```
+Gotchas that bit us: OpenSSL 3.x p12 needs `-legacy` for macOS `security` to read it;
+an **empty p12 password fails** ("MAC verification failed") — use a real one; the cert
+shows as `CSSMERR_TP_NOT_TRUSTED` / not in `find-identity -v`, but `codesign` signs with
+it fine and TCC is happy (trust only matters for Gatekeeper launch, which dev launches
+bypass).
+
+**Follow-on crash:** after switching to the self-signed cert, the app crashed at launch
+with `Library not loaded: @rpath/Afterthought.debug.dylib ... different Team IDs`. Xcode
+splits debug builds into a separate `.debug.dylib`; with a real signature dyld enforces a
+matching Team ID between it and the main binary, and our cert has none → rejected (ad-hoc
+skips this check). Fix: `ENABLE_DEBUG_DYLIB: NO` in project.yml → single signed binary,
+no mismatch. (Tradeoff: loses the debug-dylib build-speed/preview optimization; fine for
+this project.)
