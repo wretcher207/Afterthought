@@ -23,6 +23,10 @@ final class CaptureEngine {
 
     private(set) var permission: Permission = .unknown
 
+    /// Called when Screen Recording permission is denied (so AppState can
+    /// end the active session before it becomes an orphan).
+    var onPermissionDenied: (@MainActor () -> Void)?
+
     private var loopTask: Task<Void, Never>?
 
     var isRunning: Bool { loopTask != nil }
@@ -66,6 +70,7 @@ final class CaptureEngine {
             // The first failure is almost always Screen Recording being denied;
             // surface it and stop hammering the system with prompts.
             permission = .denied
+            onPermissionDenied?()
             stop()
         }
     }

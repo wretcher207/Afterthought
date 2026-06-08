@@ -40,6 +40,23 @@ feature was missing.
 the build output — don't trust `find | head`. Screen Recording (TCC) grants are also
 tied to the exact binary, so each rebuild may re-prompt and require a relaunch.
 
+## 2026-06-08 — sandbox-exec nesting fails inside CodeWhale
+
+**What didn't work:** `xcodebuild` and bare `swift build` both fail with
+`sandbox-exec: sandbox_apply: Operation not permitted`. Apple's toolchain wraps
+child processes (swiftc, manifest parser) in its own sandbox via `sandbox-exec`,
+which calls `sandbox_apply()`. CodeWhale's outer sandbox denies that syscall, so
+the inner sandbox can't be created.
+
+**What worked instead:** `swift build --disable-sandbox` — tells SPM to skip
+sandboxing child processes. Requires a `Package.swift` alongside the Xcode project
+(both can coexist — XcodeGen owns the `.xcodeproj`, SPM uses `Package.swift`).
+
+**Note for next time:** Add `Package.swift` to any Xcode project that needs
+CodeWhale-based CI or verification. Use `swift build --disable-sandbox` instead
+of `xcodebuild` for compile checks. For signing, bundling, and running, still
+use `xcodebuild` on the host machine.
+
 ## 2026-06-08 — Screen Recording grant dropped on every rebuild (ad-hoc signing)
 
 **What didn't work:** Ad-hoc (`Signature=adhoc`) signing — the default for an unsigned

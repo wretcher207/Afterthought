@@ -45,8 +45,8 @@ coherent episodic memories. Reviewed against the `swiftui-pro` skill conventions
 - **Foundation Models API surface:** verify method signatures against current docs at implementation time.
 - App Store viability of the passive-capture engine remains an open question; manual capture is safe regardless.
 - **1b runtime verification:** ✅ DONE 2026-06-08. Ran live — screenshot→HEIC→Vision OCR→Entry (wired to Session) confirmed in the store. Required a crash fix (see ERRORS.md: SwiftData relationship-in-init).
-- **Capture failure leaves orphan sessions:** when Screen Recording is denied, the engine flips to `.denied` and stops, but `AppState.activeSession` is never ended — so each failed Start left a `Session` row with `endedAt == nil` and zero entries (7 such rows from the permission dance). One orphaned HEIC (`90B6…`) was written before the crash, with no matching Entry. Add cleanup + have the denied path call `stopSession()` in 1c.
-- **Screenshot thumbnails:** timeline currently shows OCR text + camera icon only; rendering the stored HEIC in `EntryRowView` is a deferred nicety.
+- **Capture failure leaves orphan sessions:** ✅ FIXED 2026-06-08. `CaptureEngine` now exposes `onPermissionDenied` callback; `AppState` sets it to call `stopSession()`, so a denied permission properly ends the session (sets `endedAt`, nils `activeSession`) instead of leaving an unterminated row.
+- **Screenshot thumbnails:** ✅ DONE 2026-06-08. `EntryRowView` now renders the stored HEIC thumbnail for screenshot entries via `ScreenshotThumbnail` (async disk load, camera icon placeholder during fetch). Notes and other entry kinds retain the SF Symbol icon.
 
 ## Status
 - **1a DONE** — XcodeGen project, SwiftData models (Session/Entry/EntryKind), AppState, menu-bar quick-note + start/stop session, timeline window with search. Builds clean against macOS 26.5 SDK.

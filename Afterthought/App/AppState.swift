@@ -10,9 +10,16 @@ final class AppState {
     var activeSession: Session?
 
     /// Drives interval screen capture for the active session.
-    let captureEngine = CaptureEngine()
+    let captureEngine: CaptureEngine
 
     var isCapturing: Bool { activeSession != nil }
+
+    init() {
+        captureEngine = CaptureEngine()
+        captureEngine.onPermissionDenied = { [weak self] in
+            self?.stopSession()
+        }
+    }
 
     /// Starts a new capture session and kicks off interval screenshots.
     func startSession(in context: ModelContext) {
